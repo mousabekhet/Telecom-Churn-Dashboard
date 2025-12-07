@@ -145,13 +145,13 @@ st.markdown(
     /* Background gradient - brighter */
     .stApp {
         background: linear-gradient(135deg, #a1c4fd, #c2e9fb); /* light blue gradient */
-        color: #ffffff;
+        color: #000000;
         font-weight: bold;
     }
 
     /* Titles and headers */
     h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
+        color: #000000 !important;
         font-family: 'Segoe UI', sans-serif;
         font-weight: bold !important;
     }
@@ -161,7 +161,7 @@ st.markdown(
         background-color: rgba(255, 255, 255, 0.1);
         padding: 15px;
         border-radius: 10px;
-        color: #ffffff !important;
+        color: #000000 !important;
         font-weight: bold !important;
     }
 
@@ -169,30 +169,31 @@ st.markdown(
     .stTable {
         background-color: rgba(255, 255, 255, 0.05);
         border-radius: 10px;
-        color: #ffffff !important;
+        color: #000000 !important;
         font-weight: bold !important;
     }
 
     /* Divider line */
     hr {
-        border: 1px solid #ffffff33;
+        border: 1px solid #00000033;
     }
 
     /* General text (markdown, labels, selectbox, slider, etc.) */
     .stMarkdown, .stText, .stSelectbox label, .stSlider label, .stRadio label, .stCheckbox label {
-        color: #ffffff !important;
+        color: #000000 !important;
         font-weight: bold !important;
     }
 
     /* Plotly charts text */
     .js-plotly-plot .plotly .main-svg {
-        color: #ffffff !important;
+        color: #000000 !important;
         font-weight: bold !important;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 
 # -------------------------------
@@ -209,8 +210,66 @@ rev_1, rev_2 = st.columns(2)
 rev_1.metric("Avg total_revenue (Stayed)", f"${avg_rev.loc[0]:,.2f}")
 rev_2.metric("Avg total_revenue (Churned)", f"${avg_rev.loc[1]:,.2f}")
 
-# Churn category counts
+df2=df
+########################################################################################################################################
+########################################################################################################################################
+# -------------------------------
+# Sidebar Controls
+# -------------------------------
+st.sidebar.header("Filters")
 
+# Tenure slider
+tenure_slider = st.sidebar.slider(
+    "Select maximum tenure (months)",
+    min_value=int(df['tenure_in_months'].min()),
+    max_value=int(df['tenure_in_months'].max()),
+    value=int(df['tenure_in_months'].max())
+)
+
+# Churn filter
+churn_filter = st.sidebar.multiselect(
+    "Select churn flag(s)",
+    options=df['churn_flag'].dropna().unique().tolist()
+)
+
+# Gender filter
+gender_filter = st.sidebar.multiselect(
+    "Select gender(s)",
+    options=df['gender'].dropna().unique().tolist()
+)
+
+# Payment method filter
+payment_filter = st.sidebar.multiselect(
+    "Select payment method(s)",
+    options=df['payment_method'].dropna().unique().tolist()
+)
+
+# Age tier filter
+age_filter = st.sidebar.multiselect(
+    "Select age tier(s)",
+    options=df['age_tier'].dropna().unique().tolist()
+)
+
+# -------------------------------
+# Apply filters
+# -------------------------------
+df_filtered = df[df['tenure_in_months'] <= tenure_slider]
+
+if payment_filter:
+    df_filtered = df_filtered[df_filtered['churn_flag'].isin(churn_filter)]
+
+if gender_filter:
+    df_filtered = df_filtered[df_filtered['gender'].isin(gender_filter)]
+
+if payment_filter:
+    df_filtered = df_filtered[df_filtered['payment_method'].isin(payment_filter)]
+
+if age_filter:
+    df_filtered = df_filtered[df_filtered['age_tier'].isin(age_filter)]
+
+df=df_filtered
+########################################################################################################################################
+########################################################################################################################################
 
 # Churn category counts
 st.subheader("Churn category counts")
@@ -251,7 +310,18 @@ st.subheader("Top 10 Churn Reasons")
 st.table(top5_df)
 
 # Selection and controls
-col_option = st.selectbox("Select column to analyze:", ['age_tier', 'offer', 'city', 'gender','payment_method','married','internet_service'])
+col_option = st.selectbox("Select column to analyze:", ['tenure_in_months', 'gender',  'married', 'number_of_dependents',
+       'city', 'zip_code', 'number_of_referrals',
+        'offer', 'phone_service',
+       'avg_monthly_long_distance_charges', 'multiple_lines',
+       'internet_service', 'internet_type', 'avg_monthly_gb_download',
+       'online_security', 'online_backup', 'device_protection_plan',
+       'premium_tech_support', 'streaming_tv', 'streaming_movies',
+       'streaming_music', 'unlimited_data', 'contract', 'paperless_billing',
+       'payment_method', 'monthly_charge', 'total_charges', 'total_refunds',
+       'total_extra_data_charges', 'total_long_distance_charges',
+       'total_revenue', 'customer_status', 'churn_category', 'churn_reason',
+       'churn_flag', 'age_tier'])
 
 top_n = None
 if col_option == 'city':
