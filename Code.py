@@ -11,7 +11,7 @@ from matplotlib.patches import Patch
 # -------------------------------
 # Load CSV into DataFrame
 # -------------------------------
-df = pd.read_csv("D:\\epislion\\ss\\telecom_customer_churn.csv")
+df = pd.read_csv("telecom_customer_churn.csv")
 
 df.columns = (
         df.columns
@@ -326,7 +326,7 @@ st.table(top5_df)
 ##########################################################################################
 # Load US states map from Natural Earth data via URL
 
-us_states = gpd.read_file("D:\\epislion\\ss\\ne_110m_admin_1_states_provinces.zip")
+us_states = gpd.read_file("ne_110m_admin_1_states_provinces.zip")
 california = us_states[us_states['name'] == 'California']
 
 
