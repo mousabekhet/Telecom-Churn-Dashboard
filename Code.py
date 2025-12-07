@@ -3,13 +3,15 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import streamlit as st
-
+import matplotlib.pyplot as plt
+import geopandas as gpd
+from matplotlib.patches import Patch
 
 
 # -------------------------------
 # Load CSV into DataFrame
 # -------------------------------
-df = pd.read_csv("telecom_customer_churn.csv")
+df = pd.read_csv("D:\\epislion\\ss\\telecom_customer_churn.csv")
 
 df.columns = (
         df.columns
@@ -250,6 +252,12 @@ age_filter = st.sidebar.multiselect(
     options=df['age_tier'].dropna().unique().tolist()
 )
 
+# city tier filter
+city_filter = st.sidebar.multiselect(
+    "Select city",
+    options=df['city'].dropna().unique().tolist()
+)
+
 # -------------------------------
 # Apply filters
 # -------------------------------
@@ -266,6 +274,10 @@ if payment_filter:
 
 if age_filter:
     df_filtered = df_filtered[df_filtered['age_tier'].isin(age_filter)]
+
+if city_filter:
+    df_filtered = df_filtered[df_filtered['city'].isin(city_filter)]
+
 
 df=df_filtered
 ########################################################################################################################################
@@ -308,6 +320,44 @@ top5_df = top5_df.sort_values('count', ascending=False)
 st.markdown("---")
 st.subheader("Top 10 Churn Reasons")
 st.table(top5_df)
+
+
+##########################################################################################
+##########################################################################################
+# Load US states map from Natural Earth data via URL
+
+us_states = gpd.read_file("D:\\epislion\\ss\\ne_110m_admin_1_states_provinces.zip")
+california = us_states[us_states['name'] == 'California']
+
+
+# Create figure
+fig, ax = plt.subplots(figsize=(15, 10))
+
+# Plot California
+california.plot(ax=ax, color='lightgray', edgecolor='black')
+
+# Plot points colored by churn flag
+colors = ['red' if x == 1 else 'green' for x in df['churn_flag']]
+ax.scatter(df['longitude'], df['latitude'], c=colors, s=10, alpha=0.7, edgecolors='black')
+
+# Add legend
+legend_elements = [Patch(facecolor='green', label='Retained'),
+                   Patch(facecolor='red', label='Churned')]
+ax.legend(handles=legend_elements, loc='upper left')
+
+# Set labels and title
+ax.set_xlabel('Longitude')
+ax.set_ylabel('Latitude')
+ax.set_title('California Cities with Customer Churn Status')
+ax.set_xlim([-124.5, -114.0])
+ax.set_ylim([32.5, 42.0])
+
+plt.tight_layout()
+st.pyplot(fig)
+##########################################################################################
+##########################################################################################
+######################################################################################################################################
+########################################################################################################################################
 
 # Selection and controls
 col_option = st.selectbox("Select column to analyze:", ['tenure_in_months', 'gender',  'married', 'number_of_dependents',
