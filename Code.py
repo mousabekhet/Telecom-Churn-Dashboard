@@ -61,8 +61,131 @@ def _prepare_top(df, col, top_n=None):
     top_vals = df[col].value_counts().nlargest(top_n).index
     return df[df[col].isin(top_vals)].copy()
 
+######################################################################################
+######################################################################################
+######################################################################################
+######################################################################################
+
+# Handle Outliers for numeric columns
 
 
+# Outlier detection and handling utilities (uses existing df, numeric_auto, numpy, seaborn, matplotlib)
+def detect_outliers_iqr(series, k=1.5):
+    """Return boolean mask where True indicates an outlier by IQR method."""
+    q1 = series.quantile(0.25)
+    q3 = series.quantile(0.75)
+    iqr = q3 - q1
+    lower = q1 - k * iqr
+    upper = q3 + k * iqr
+    return (series < lower) | (series > upper), lower, upper
+
+def summarize_outliers(df, cols=None, k=1.5, sort=True):
+    """Print a small summary of outliers per numeric column using IQR method."""
+    if cols is None:
+        cols = list(numeric_auto)
+    summary = []
+    for c in cols:
+        s = pd.to_numeric(df[c], errors='coerce')
+        mask, lower, upper = detect_outliers_iqr(s, k=k)
+        n_out = int(mask.sum())
+        pct = n_out / len(s) * 100
+        summary.append((c, n_out, pct, lower, upper))
+    summary_df = pd.DataFrame(summary, columns=['column', 'n_outliers', 'pct_outliers', 'lower_bound', 'upper_bound'])
+    if sort:
+        summary_df = summary_df.sort_values('n_outliers', ascending=False)
+    display(summary_df.reset_index(drop=True))
+    return summary_df
+
+def handle_outliers(df, cols=None, method='cap', k=1.5, inplace=False, verbose=True):
+    """
+    Handle outliers in numeric columns using IQR method.
+    method: 'cap' -> winsorize (clip) to IQR bounds
+            'median' -> replace outliers with median
+            'remove' -> drop rows that contain any outlier in the selected cols
+    Returns new DataFrame (or modifies inplace if inplace=True).
+    """
+    if cols is None:
+        cols = list(numeric_auto)
+    if not inplace:
+        df = df.copy()
+
+    total_rows_before = len(df)
+    if method == 'remove':
+        # Build mask of rows to drop if they have any outlier
+        drop_mask = pd.Series(False, index=df.index)
+        for c in cols:
+            s = pd.to_numeric(df[c], errors='coerce')
+            mask, _, _ = detect_outliers_iqr(s, k=k)
+            drop_mask = drop_mask | mask.fillna(False)
+        n_drop = int(drop_mask.sum())
+        if verbose:
+            print(f"Removing {n_drop} rows ({n_drop/total_rows_before:.2%}) containing outliers across {len(cols)} cols")
+        df = df.loc[~drop_mask].reset_index(drop=True)
+        if verbose:
+            print(f"Rows before: {total_rows_before}, after: {len(df)}")
+        return df
+
+    # For cap or median replacement
+    for c in cols:
+        s = pd.to_numeric(df[c], errors='coerce')
+        mask, lower, upper = detect_outliers_iqr(s, k=k)
+        n_out = int(mask.sum())
+        if n_out == 0:
+            if verbose:
+                print(f"{c}: 0 outliers")
+            continue
+        if method == 'cap':
+            # clip values to bounds
+            df[c] = s.clip(lower=lower, upper=upper)
+            if verbose:
+                print(f"{c}: capped {n_out} values to [{lower:.4g}, {upper:.4g}]")
+        elif method == 'median':
+            med = s.median()
+            df.loc[mask, c] = med
+            if verbose:
+                print(f"{c}: replaced {n_out} outliers with median {med:.4g}")
+        else:
+            raise ValueError("method must be one of {'cap','median','remove'}")
+    return df
+
+def plot_before_after(df_before, df_after, cols=None, ncols=3, figsize=(12, 6)):
+    """Show side-by-side boxplots before/after for selected numeric columns."""
+    if cols is None:
+        cols = list(numeric_auto)[:6]
+    n = len(cols)
+    nrows = math.ceil(n / ncols)
+    fig, axes = plt.subplots(2 * nrows, ncols, figsize=figsize, constrained_layout=True)
+    axes = axes.flatten()
+    for i, c in enumerate(cols):
+        sns.boxplot(x=df_before[c], ax=axes[i], color='lightcoral')
+        axes[i].set_title(f"{c} (before)")
+        sns.boxplot(x=df_after[c], ax=axes[i + nrows * ncols], color='lightseagreen')
+        axes[i + nrows * ncols].set_title(f"{c} (after)")
+    # hide unused axes
+    for j in range(n * 2, len(axes)):
+        axes[j].set_visible(False)
+    plt.show()
+
+# 3) Or replace outliers with median:
+# df_med = handle_outliers(df, method='median')
+#
+# 4) Or remove rows with outliers:
+# df_removed = handle_outliers(df, method='remove')
+#
+# 5) Visual comparison (choose a few columns)
+# sample_cols = list(numeric_auto)[:6]
+# plot_before_after(df, df_clean, cols=sample_cols)
+
+# Run a quick summary by default
+if __name__ == "__main__" or True:
+    print("Outlier summary (IQR k=1.5):")
+    summarize_outliers(df)
+
+#####################################################################################
+#####################################################################################
+#####################################################################################
+
+#Visualizations Functions
 
 # Plotly stacked count
 def stacked_count_plot_plotly(df_plot, col):
@@ -361,7 +484,7 @@ st.pyplot(fig)
 
 # Selection and controls
 col_option = st.selectbox("Select column to analyze:", ['tenure_in_months', 'gender',  'married', 'number_of_dependents',
-       'city', 'zip_code', 'number_of_referrals',
+       'city', 'number_of_referrals',
         'offer', 'phone_service',
        'avg_monthly_long_distance_charges', 'multiple_lines',
        'internet_service', 'internet_type', 'avg_monthly_gb_download',
