@@ -6,6 +6,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import geopandas as gpd
 from matplotlib.patches import Patch
+import math
 
 
 # -------------------------------
@@ -176,11 +177,17 @@ def plot_before_after(df_before, df_after, cols=None, ncols=3, figsize=(12, 6)):
 # sample_cols = list(numeric_auto)[:6]
 # plot_before_after(df, df_clean, cols=sample_cols)
 
-# Run a quick summary by default
-if __name__ == "__main__" or True:
-    print("Outlier summary (IQR k=1.5):")
-    summarize_outliers(df)
 
+df_old=df
+df= handle_outliers(df, method='median')
+#####################################################################################
+#####################################################################################
+#####################################################################################
+#####################################################################################
+# -------------------------------
+# Streamlit UI
+# -------------------------------
+#####################################################################################
 #####################################################################################
 #####################################################################################
 #####################################################################################
@@ -250,11 +257,11 @@ def stacked_percent_plot_plotly(df_plot, col):
     return fig
 
 
-# -------------------------------
-# Streamlit UI
-# -------------------------------
-# Modern UI Styling
-# -------------------------------
+#####################################################################################
+#####################################################################################
+# UIConfiguration
+#####################################################################################
+
 st.set_page_config(
     page_title="Churn Dashboard",
     page_icon="📊",
@@ -324,25 +331,14 @@ st.markdown(
 # -------------------------------
 st.title("📊 Churn Dashboard")
 
-# Metrics
-churn_counts = df['churn_flag'].value_counts().reindex([0,1], fill_value=0)
-col1, col2 = st.columns(2)
-col1.metric("Stayed (0)", int(churn_counts.loc[0]))
-col2.metric("Churned (1)", int(churn_counts.loc[1]))
 
-avg_rev = df.groupby('churn_flag')['total_revenue'].mean().reindex([0, 1])
-rev_1, rev_2 = st.columns(2)
-rev_1.metric("Avg total_revenue (Stayed)", f"${avg_rev.loc[0]:,.2f}")
-rev_2.metric("Avg total_revenue (Churned)", f"${avg_rev.loc[1]:,.2f}")
-
-df2=df
 ########################################################################################################################################
 ########################################################################################################################################
 # -------------------------------
 # Sidebar Controls
 # -------------------------------
 st.sidebar.header("Filters")
-
+st.markdown("---")
 # Tenure slider
 tenure_slider = st.sidebar.slider(
     "Select maximum tenure (months)",
@@ -406,6 +402,19 @@ df=df_filtered
 ########################################################################################################################################
 ########################################################################################################################################
 
+# Metrics
+churn_counts = df['churn_flag'].value_counts().reindex([0,1], fill_value=0)
+col1, col2 = st.columns(2)
+col1.metric("Stayed (0)", int(churn_counts.loc[0]))
+col2.metric("Churned (1)", int(churn_counts.loc[1]))
+
+avg_rev = df.groupby('churn_flag')['total_revenue'].mean().reindex([0, 1])
+rev_1, rev_2 = st.columns(2)
+rev_1.metric("Avg total_revenue (Stayed)", f"${avg_rev.loc[0]:,.2f}")
+rev_2.metric("Avg total_revenue (Churned)", f"${avg_rev.loc[1]:,.2f}")
+
+df2=df
+st.markdown("---")
 # Churn category counts
 st.subheader("Churn category counts")
 if 'churn_category' in df.columns:
@@ -431,6 +440,13 @@ if 'churn_category' in df.columns:
     st.plotly_chart(fig_cat, use_container_width=True)
 
 
+# Helper for top categories
+def _prepare_top(df, col, top_n=None):
+    if top_n is None:
+        return df
+    top_vals = df[col].value_counts().nlargest(top_n).index
+    return df[df[col].isin(top_vals)].copy()
+st.markdown("---")
 
 # Top 10 churn reasons
 top5 = (
@@ -444,7 +460,7 @@ st.markdown("---")
 st.subheader("Top 10 Churn Reasons")
 st.table(top5_df)
 
-
+st.markdown("---")
 ##########################################################################################
 ##########################################################################################
 # Load US states map from Natural Earth data via URL
@@ -477,6 +493,7 @@ ax.set_ylim([32.5, 42.0])
 
 plt.tight_layout()
 st.pyplot(fig)
+st.markdown("---")
 ##########################################################################################
 ##########################################################################################
 ######################################################################################################################################
